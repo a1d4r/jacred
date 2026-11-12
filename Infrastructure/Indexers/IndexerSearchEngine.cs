@@ -285,7 +285,8 @@ namespace JacRed.Infrastructure.Indexers
                 Seeders = i.sid,
                 Peers = i.pir,
                 MagnetUri = i.magnet,
-                ffprobe = rqnum || !AppInit.conf.tracks ? null : i.ffprobe,
+                // Stored tracks even when tracks is off, as JackettResultBuilder returns them.
+                ffprobe = rqnum ? null : i.ffprobe,
                 // Stored languages come from metadata only; add the audio tracks, as JackettResultBuilder does.
                 languages = TracksDB.Languages(i, i.ffprobe),
                 info = rqnum ? null : new TorrentInfo

@@ -134,4 +134,14 @@ public class TorznabXmlFormatterLanguageTests
         Assert.Empty(Subs(XmlWithTracks()));
         Assert.Empty(Subs(XmlWithTracks(Track("audio", "rus"), Track("subtitle", "und"), Track("subtitle", null))));
     }
+
+    [Fact]
+    public void MapV1_KeepsStoredFfprobe()
+    {
+        var ffprobe = new List<ffStream> { Track("audio", "rus"), Track("subtitle", "eng") };
+        var torrent = new TorrentDetails { trackerName = "rutracker", title = "Дюна", ffprobe = ffprobe };
+
+        Assert.Same(ffprobe, IndexerSearchEngine.MapV1(torrent, rqnum: false).ffprobe);
+        Assert.Null(IndexerSearchEngine.MapV1(torrent, rqnum: true).ffprobe);
+    }
 }

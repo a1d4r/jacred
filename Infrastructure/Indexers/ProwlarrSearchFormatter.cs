@@ -81,7 +81,7 @@ namespace JacRed.Infrastructure.Indexers
                 infoHash,
                 seeders = torrent.Seeders,
                 leechers = torrent.Peers,
-                // JacRed extensions (same payload as Jackett /api/v2.0/.../results when tracks: true)
+                // JacRed extensions, same payload as Jackett /api/v2.0/.../results (ffprobe: stored streams, also when tracks: false)
                 torrent.ffprobe,
                 torrent.languages,
                 torrent.info
