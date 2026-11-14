@@ -247,7 +247,7 @@ namespace JacRed.Infrastructure.Indexers
                 // No stored seasons: match the season in the title.
                 query = query.Where(i => i.seasons != null && i.seasons.Count > 0
                     ? i.seasons.Contains(season.Value)
-                    : SeasonEpisodeFilter.SeasonFromTitle(i.title) == season.Value);
+                    : SeasonEpisodeFilter.TitleHasSeason(i.title, season.Value));
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
