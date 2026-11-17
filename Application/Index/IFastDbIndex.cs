@@ -14,6 +14,6 @@ namespace JacRed.Application.Index
         HashSet<string> FranchiseKeys(string nameSn, string originalSn, int max);
 
         /// <summary>See <see cref="FastDbIndex.TitleFormKeys"/>.</summary>
-        HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear);
+        HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear, string otherSn = null);
     }
 }
