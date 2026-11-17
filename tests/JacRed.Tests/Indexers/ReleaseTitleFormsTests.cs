@@ -102,6 +102,25 @@ public class ReleaseTitleFormsTests
     }
 
     [Theory]
+    [InlineData("Побег из тюрьмы (Сезон 1, серии 1-22(22)) / Prison Break (Пол Шойринг) [2005, США, Экшн, Драма, BDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break - сезон 1 - (Пол Шойринг / Paul Scheuring) Nova + Eng [2005, США, драма, боевик, BDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы Сезон 1 (Серия 1-22) / Prison Break Season 1 (Episode 1-22) (Пол Шойринг) [2005, США, BDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break / Сезон: 1 / Серии: 1-22 (22) (Пол Шеринг / Paul Scheuring) [2005, США, HDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break S01 [2005, США, BDRip]", "Prison Break", true)]
+    [InlineData("Закон и порядок (Сезон 1) / Law &amp; Order [1990, США, DVDRip]", "Law & Order", true)]
+    // Not a season behind the name: another word, or more after the season
+    [InlineData("Вверх тормашками / Ups 1 [2010, Россия, WEBRip]", "Up", false)]
+    [InlineData("Вверх тормашками / Up S1 Extra [2010, Россия, WEBRip]", "Up", false)]
+    [InlineData("Закон и порядок: Специальный корпус (Сезон 1) / Law & Order: SVU [1999, США]", "Law & Order", false)]
+    // The English name only as the first piece, or not at all
+    [InlineData("Prison Break (Сезон 1) [2005, США, BDRip]", "Prison Break", false)]
+    [InlineData("Одиссея капитана Блада / Captain Blood (Майкл Кертиц) [1935, США, DVDRip]", "The Odyssey", false)]
+    public void TitleNamesOriginal(string title, string original, bool expected)
+    {
+        Assert.Equal(expected, ReleaseTitleForms.TitleNamesOriginal(title, StringConvert.SearchName(original)));
+    }
+
+    [Theory]
     [InlineData(" ")]
     [InlineData("(")]
     [InlineData(" ( ")]

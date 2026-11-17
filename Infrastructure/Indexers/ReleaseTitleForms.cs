@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text.RegularExpressions;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
@@ -46,9 +47,10 @@ namespace JacRed.Infrastructure.Indexers
         // A " / " piece of a title ends where the release details start: "Prison Break (Пол Шойринг) [2005, …]".
         static readonly Regex PieceDetails = new(@"\s*[(\[|].*$", Opts);
 
-        // SearchName rest of a piece behind the original name that only names a season:
-        // "Prison Break Season 1", "Prison Break - сезон 1 -", "Prison Break S01".
-        static readonly Regex PieceSeasonRest = new(@"^(?:(?:s|season|сезон|tv|тв|tb)0?[0-9]{1,2}|[0-9]{1,2}(?:st|nd|rd|th|й|ый|ой|ий)?(?:season|сезон))", Opts);
+        // A season that ends a piece behind the original name, as a word of its own: "Prison Break Season 1",
+        // "Prison Break - сезон 1 -", "Prison Break S01", "… 2nd Season", "… 1ый сезон"; not "Ups 1" or "Up S1 Extra".
+        static readonly Regex PieceSeason = new(@"(?:\s+|\s*[-–:]\s*)(?:season\s*[0-9]{1,2}|s[0-9]{1,2}|(?:сезон|tv|тв|tb)[\s-]*[0-9]{1,2}"
+            + @"|[0-9]{1,2}(?:st|nd|rd|th)\s+season|[0-9]{1,2}(?:-?[ыои]?й)?\s+сезон)(?![\p{L}0-9])(?:\s*-)?\s*$", Opts);
 
         /// <summary>
         /// Whether a fastdb part that starts with the title (SearchName) may be one of these forms,
@@ -98,12 +100,15 @@ namespace JacRed.Infrastructure.Indexers
             if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(originalSn))
                 return false;
 
-            var pieces = title.Split(" / ");
+            // Trackers may keep entities: "Law &amp; Order".
+            var pieces = WebUtility.HtmlDecode(title).Split(" / ");
             for (int i = 1; i < pieces.Length; i++)
             {
-                string piece = StringConvert.SearchName(PieceDetails.Replace(pieces[i], ""));
-                if (piece != null && piece.StartsWith(originalSn, StringComparison.Ordinal)
-                        && (piece.Length == originalSn.Length || PieceSeasonRest.IsMatch(piece.Substring(originalSn.Length))))
+                string piece = PieceDetails.Replace(pieces[i], "");
+                if (StringConvert.SearchName(piece) == originalSn)
+                    return true;
+                var season = PieceSeason.Match(piece);
+                if (season.Success && StringConvert.SearchName(piece.Substring(0, season.Index)) == originalSn)
                     return true;
             }
             return false;
