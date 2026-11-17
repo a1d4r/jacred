@@ -44,13 +44,24 @@ namespace JacRed.Infrastructure.Indexers
         // Ore dake Level Up na Ken: Arise from the Shadow
         static readonly Regex Subtitle = new(@"^(?<base>[^:]+?)\s*:\s*\S", Opts);
 
-        // A " / " piece of a title ends where the release details start: "Prison Break (Пол Шойринг) [2005, …]".
-        static readonly Regex PieceDetails = new(@"\s*[(\[|].*$", Opts);
+        // A season, maybe with a range and a part, that ends a piece behind the original name, as words of their own:
+        // "Season 1", "Season 1-5", "S01-S05", "S01E01-22", "- сезон 1 -", "- Сезон: 1", "TV-4", "9 season", "10-th season",
+        // "1ый сезон", "4th Season Part 2"; a part may have a name ("… Part 3 The Final Chapters"). Not "Ups 1" or
+        // "Up S1 Extra". Dots and underscores count as spaces ("Prison.Break.S01").
+        const string N = "[0-9]{1,2}";
+        static readonly Regex PieceSeason = new(
+            @"(?:(?>\s+)|(?>\s*)[-–:](?>\s*))(?:"
+                + $@"season\s*:?\s*{N}(?:\s*-\s*{N})?"
+                + $@"|s{N}(?:e[0-9]{{1,3}})?(?:\s*-\s*(?:s{N}(?:e[0-9]{{1,3}})?|e?[0-9]{{1,3}}))?"
+                + $@"|(?:сезон\p{{L}}*|tv|тв|tb)[\s:-]*{N}(?:\s*-\s*{N})?"
+                + $@"|{N}(?:-?(?:st|nd|rd|th))?\s+season"
+                + $@"|{N}(?:\s*-\s*{N})?(?:-?[ыои]?й)?\s+сезон\p{{L}}*)"
+                + $@"(?:\s*[-,:]?\s*(?:part|часть)\s*{N}(?:\s+\p{{L}}.*)?)?(?![\p{{L}}0-9])(?:\s*-)?\s*$", Opts);
 
-        // A season that ends a piece behind the original name, as a word of its own: "Prison Break Season 1",
-        // "Prison Break - сезон 1 -", "Prison Break S01", "… 2nd Season", "… 1ый сезон"; not "Ups 1" or "Up S1 Extra".
-        static readonly Regex PieceSeason = new(@"(?:\s+|\s*[-–:]\s*)(?:season\s*[0-9]{1,2}|s[0-9]{1,2}|(?:сезон|tv|тв|tb)[\s-]*[0-9]{1,2}"
-            + @"|[0-9]{1,2}(?:st|nd|rd|th)\s+season|[0-9]{1,2}(?:-?[ыои]?й)?\s+сезон)(?![\p{L}0-9])(?:\s*-)?\s*$", Opts);
+        // Longest piece the season is looked for in: a name and a season; the regex backtracks on long runs of spaces.
+        const int MaxSeasonPiece = 300;
+
+        static readonly char[] DetailsStart = { '(', '[', '|' };
 
         /// <summary>
         /// Whether a fastdb part that starts with the title (SearchName) may be one of these forms,
@@ -104,9 +115,16 @@ namespace JacRed.Infrastructure.Indexers
             var pieces = WebUtility.HtmlDecode(title).Split(" / ");
             for (int i = 1; i < pieces.Length; i++)
             {
-                string piece = PieceDetails.Replace(pieces[i], "");
+                // The piece ends where the release details start: "Prison Break (Пол Шойринг) [2005, …]".
+                string piece = pieces[i];
+                int details = piece.IndexOfAny(DetailsStart);
+                if (details >= 0)
+                    piece = piece.Substring(0, details);
                 if (StringConvert.SearchName(piece) == originalSn)
                     return true;
+                if (piece.Length > MaxSeasonPiece)
+                    continue;
+                piece = piece.Replace('.', ' ').Replace('_', ' ');
                 var season = PieceSeason.Match(piece);
                 if (season.Success && StringConvert.SearchName(piece.Substring(0, season.Index)) == originalSn)
                     return true;

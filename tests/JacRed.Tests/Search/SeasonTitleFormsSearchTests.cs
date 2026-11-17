@@ -740,6 +740,35 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task SeriesIdSearch_SeasonPartCutToRussian_FoundByAlternativeName()
+    {
+        // "Атака титанов: Финал" is a subtitle of a name with too many of them, so only the Russian-only keys open it,
+        // and the title names Alloha's alternative_name with the season and a part.
+        string[] anime = { "anime" };
+        string ru = $"Атака {_tag} титанов", orig = $"Shingeki {_tag} no kyojin", alt = $"Attack on {_tag} Titan", final = $"{ru}: Финал";
+        Seed("aot-final", final, final, 2022, anime,
+            $"{final} (ТВ-4, часть 2) / {orig}: The Final Season / {alt}: 4th Season Part 2 [TV] [12 из 12] [RUS(int), JAP+Sub] [2022, приключения, WEB-DL] [1080p]");
+        for (int i = 0; i <= FastDbIndex.MaxSubtitleParts; i++)
+        {
+            string special = $"{ru}: Спешл {LetterTag(i + 1)}";
+            Seed($"aot-special-{i}", special, special, 2014, anime, $"{special} / {orig} [2014, OVA]");
+        }
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "aot-final" }, await IdSearch("tt9990133", orig, ru, 2013, "anime", series: true, 4, alternative: alt));
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_SeasonRangeCutToRussian_IsFound()
+    {
+        string ru = $"Побег {_tag}", en = $"Prison {_tag} Break", name = $"{ru} из тюрьмы";
+        Seed("pack", name, name, 2005, new[] { "serial" }, $"{name} / {en} Season 1-5 [2005-2017, США, DVDRip]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "pack" }, await IdSearch("tt9990134", en, ru, 2005, "serial", series: true, 2));
+    }
+
+    [Fact]
     public async Task NameCutToRussian_TooManyBuckets_GetsNone()
     {
         string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";

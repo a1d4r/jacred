@@ -108,6 +108,17 @@ public class ReleaseTitleFormsTests
     [InlineData("Побег из тюрьмы / Prison Break / Сезон: 1 / Серии: 1-22 (22) (Пол Шеринг / Paul Scheuring) [2005, США, HDRip]", "Prison Break", true)]
     [InlineData("Побег из тюрьмы / Prison Break S01 [2005, США, BDRip]", "Prison Break", true)]
     [InlineData("Закон и порядок (Сезон 1) / Law &amp; Order [1990, США, DVDRip]", "Law & Order", true)]
+    // A season range, a part, a colon, dots between words
+    [InlineData("Атака титанов: Финал (ТВ-4, часть 2) / Shingeki no Kyojin: The Final Season / Attack on Titan: 4th Season Part 2 [TV] [12 из 12] [2022, WEB-DL] [1080p]", "Attack on Titan", true)]
+    [InlineData("Побег из тюрьмы / Prison Break Season 1-5 [2005-2017, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break S01-S05 [2005-2017, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break S01E01-22 [2005, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break - Сезон: 1 [2005, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison Break Season 1 Part 2 [2005, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Побег из тюрьмы / Prison.Break.S01 [2005, США, DVDRip]", "Prison Break", true)]
+    [InlineData("Друзья 9 сезон / Friends 9 season [2003, США, Комедия, DVD5]", "Friends", true)]
+    [InlineData("Друзья 10-й сезон / Friends 10-th season (David Crane) [2004, США, Комедийный сериал, DVDRip]", "Friends", true)]
+    [InlineData("Атака титанов: Финал (ТВ-4, часть 3) / Shingeki no Kyojin: The Final Season - Kanketsu-hen / Attack on Titan: 4th Season Part 3 The Final Chapters [Special] [2 из 2]", "Attack on Titan", true)]
     // Not a season behind the name: another word, or more after the season
     [InlineData("Вверх тормашками / Ups 1 [2010, Россия, WEBRip]", "Up", false)]
     [InlineData("Вверх тормашками / Up S1 Extra [2010, Россия, WEBRip]", "Up", false)]
@@ -118,6 +129,16 @@ public class ReleaseTitleFormsTests
     public void TitleNamesOriginal(string title, string original, bool expected)
     {
         Assert.Equal(expected, ReleaseTitleForms.TitleNamesOriginal(title, StringConvert.SearchName(original)));
+    }
+
+    [Fact]
+    public void TitleNamesOriginal_LongRunsOfSpacesAreQuick()
+    {
+        string title = "Побег из тюрьмы / Prison Break" + new string(' ', 50_000) + "!";
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Assert.False(ReleaseTitleForms.TitleNamesOriginal(title, "prisonbreak1"));
+        Assert.True(sw.ElapsedMilliseconds < 500, $"{sw.ElapsedMilliseconds} ms");
     }
 
     [Theory]
