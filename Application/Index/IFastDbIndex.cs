@@ -15,5 +15,8 @@ namespace JacRed.Application.Index
 
         /// <summary>See <see cref="FastDbIndex.TitleFormKeys"/>.</summary>
         HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear, string otherSn = null);
+
+        /// <summary>See <see cref="FastDbIndex.RussianOnlyNameKeys"/>.</summary>
+        HashSet<string> RussianOnlyNameKeys(string ruSn, string enSn);
     }
 }

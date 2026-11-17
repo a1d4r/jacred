@@ -663,6 +663,112 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(new[] { "other-year-rus" }, await CardSearch(ru, en, 2020, 1, apiKey: "rus"));
     }
 
+    // rutracker names a season "Побег из тюрьмы (Сезон 1, серии 1-22(22)) / Prison Break (Пол Шойринг) [2005, …]": the parser
+    // keeps only "Побег из тюрьмы", and the key is побегизтюрьмы:побегизтюрьмы. The title is "Побег" / "Prison Break".
+    void SeedRussianOnly(string ru, string en)
+    {
+        string[] serial = { "serial" };
+        // A release named as the title: the card search finds the name and does not search without the year.
+        Seed("ro-exact", ru, en, 2005, serial, $"{ru} / {en} [S01] (2005) BDRip");
+        string name = $"{ru} из тюрьмы";
+        Seed("ro-s1", name, name, 2005, serial, $"{name} (Сезон 1, серии 1-22(22)) / {en} (Пол Шойринг) [2005, США, Экшн, Драма, BDRip 1080p] (NovaFilm)");
+        Seed("ro-s1-dash", name, name, 2005, serial, $"{name} / {en} - сезон 1 - (Пол Шойринг / Paul Scheuring) Nova + Eng [2005, США, драма, боевик, BDRip]");
+        Seed("ro-s1-season", name, name, 2005, serial,
+            $"{name} Сезон 1 (Серия 1-22) / {en} Season 1 (Episode 1-22) (Пол Шойринг) [2005, США, боевик, приключения, драма, триллер, BDRip, nanoHD, 720p] (Рен-ТВ)");
+        Seed("ro-s1-ordinal", name, name, 2005, serial,
+            $"{name} / {en} (1ый сезон, серии 1-22) (Бобби Рот / Bobby Roth и другие) [2005-2006, США, криминал, боевик, триллер, драма, BDRip-AVC] VO (Novafilm)");
+        Seed("ro-s2", name, name, 2006, serial, $"{name} (Сезон 2, серии 1-22(22)) / {en} (Пол Шойринг) [2006, США, Экшн, Драма, BDRip] (NovaFilm)");
+        // No English name of the title in the title: another title that starts with the Russian one.
+        Seed("ro-other", name, name, 2005, serial, $"{name} (Сезон 1, серии 1-22(22)) [2005, Россия, драма, DVDRip]");
+        Seed("ro-other-en", $"{ru}ец-молодец", $"{ru}ец-молодец", 2005, serial, $"{ru}ец-молодец / Jelly {_tag} (Сезон 1) [2005, Россия, комедия, WEBRip]");
+    }
+
+    [Theory]
+    [InlineData(1, new[] { "ro-exact", "ro-s1", "ro-s1-dash", "ro-s1-ordinal", "ro-s1-season" })]
+    [InlineData(2, new[] { "ro-s2" })]
+    public async Task SeriesIdSearch_NameCutToRussian_FoundByEnglishNameInTitle(int season, string[] expected)
+    {
+        string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";
+        SeedRussianOnly(ru, en);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(expected, await IdSearch("tt9990126", en, ru, 2005, "serial", series: true, season));
+    }
+
+    [Fact]
+    public async Task SeriesCardSearch_NameCutToRussian_FoundByEnglishNameInTitle()
+    {
+        string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";
+        SeedRussianOnly(ru, en);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "ro-exact", "ro-s1", "ro-s1-dash", "ro-s1-ordinal", "ro-s1-season", "ro-s2" }, await CardSearch(ru, en, 2005, 2));
+    }
+
+    [Fact]
+    public async Task NameCutToRussian_WithoutTheEnglishName_IsAnotherTitle()
+    {
+        // "Одиссея капитана Блада" is not "Одиссея" / "The Odyssey", "Холодец-молодец" is not "Холод" / "Cold".
+        string[] film = { "movie" };
+        // Releases named as the titles: the card search does not search without the year, which reads any key holding the name.
+        Seed("odyssey", $"Одиссея {_tag}", $"The {_tag} Odyssey", 1935, film, $"Одиссея {_tag} / The {_tag} Odyssey (1935) DVDRip");
+        Seed("cold", $"Холод {_tag}", $"Cold {_tag}", 2020, film, $"Холод {_tag} / Cold {_tag} (2020) WEBRip");
+        Seed("odyssey-blood", $"Одиссея {_tag} капитана Блада", $"Одиссея {_tag} капитана Блада", 1935, film,
+            $"Одиссея {_tag} капитана Блада / Captain {_tag} Blood (Майкл Кертиц) [1935, США, приключения, DVDRip]");
+        Seed("cold-jelly", $"Холод {_tag}ец-молодец", $"Холод {_tag}ец-молодец", 2020, film, $"Холод {_tag}ец-молодец [2020, Россия, комедия, WEBRip]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "odyssey" }, await IdSearch("tt9990127", $"The {_tag} Odyssey", $"Одиссея {_tag}", 1935, "movie", series: false, season: null));
+        Assert.Equal(new[] { "odyssey" }, await CardSearch($"Одиссея {_tag}", $"The {_tag} Odyssey", 1935, 1));
+        Assert.Equal(new[] { "cold" }, await IdSearch("tt9990128", $"Cold {_tag}", $"Холод {_tag}", 2020, "movie", series: false, season: null));
+        Assert.Equal(new[] { "cold" }, await CardSearch($"Холод {_tag}", $"Cold {_tag}", 2020, 1));
+    }
+
+    [Fact]
+    public async Task NameCutToRussian_TooManyBuckets_GetsNone()
+    {
+        string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";
+        SeedRussianOnly(ru, en);
+        // The Russian-only buckets: "… из тюрьмы", "…ец-молодец" and the fillers up to the bound.
+        for (int i = 0; i < FastDbIndex.MaxRussianOnlyNameKeys - 2; i++)
+            SeedFiller(ru, i);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(FastDbIndex.MaxRussianOnlyNameKeys, FastDbIndex.Default.RussianOnlyNameKeys(Sn(ru), Sn(en)).Count);
+        Assert.Equal(new[] { "ro-s2" }, await IdSearch("tt9990129", en, ru, 2005, "serial", series: true, 2));
+
+        SeedFiller(ru, FastDbIndex.MaxRussianOnlyNameKeys);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Empty(FastDbIndex.Default.RussianOnlyNameKeys(Sn(ru), Sn(en)));
+        Assert.Empty(await IdSearch("tt9990129", en, ru, 2005, "serial", series: true, 2));
+
+        void SeedFiller(string title, int i)
+        {
+            string name = $"{title} {LetterTag(i)}";
+            Seed($"ro-filler-{i}", name, name, 2005, new[] { "serial" }, $"{name} [2005, Россия, драма, DVDRip]");
+        }
+    }
+
+    [Fact]
+    public async Task NameCutToRussian_ShortRussianName_GetsNone()
+    {
+        // Letters only: digits would count towards the length of the name.
+        string ru = "Сон", en = $"Dream {_tag}", name = $"Сон {LetterTag(int.Parse(_tag))}";
+        Seed("dream", name, name, 2005, new[] { "serial" }, $"{name} / {en} (Сезон 1) [2005, Россия, драма, DVDRip]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Empty(FastDbIndex.Default.RussianOnlyNameKeys(Sn(ru), Sn(en)));
+        Assert.Empty(await IdSearch("tt9990130", en, ru, 2005, "serial", series: true, 1));
+        // Five letters of the same name are enough.
+        Assert.Equal(new[] { "dream" }, await IdSearch("tt9990131", en, name.Substring(0, 6), 2005, "serial", series: true, 1));
+    }
+
+    static string Sn(string name) => JacRed.Infrastructure.Utils.StringConvert.SearchName(name);
+
+    // The digits of n as Cyrillic letters.
+    static string LetterTag(int n) => new string(n.ToString().Select(c => (char)('а' + (c - '0'))).ToArray());
+
     // As Lampa sends a card: the original title as the query, both titles, the year and is_serial.
     async Task<string[]> CardSearch(string title, string original, int year, int isSerial, List<int> categories = null, string apiKey = null)
     {

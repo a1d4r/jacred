@@ -166,16 +166,75 @@ namespace JacRed.Application.Index
                 foreach (string key in list)
                 {
                     // The part may be either half of the key; keep this side only.
-                    int colon = key.IndexOf(':');
-                    bool hit = nameSide
-                        ? colon == part.Length && key.StartsWith(part, StringComparison.Ordinal)
-                        : key.Length - colon - 1 == part.Length && key.EndsWith(part, StringComparison.Ordinal);
-
-                    if (hit && keys.Add(key) && keys.Count > max)
+                    if (IsHalfOf(key, part, nameSide) && keys.Add(key) && keys.Count > max)
                         return new HashSet<string>();
                 }
             }
             return keys;
+        }
+
+        // Whether part is the name half (nameSide) or the original-name half of key.
+        static bool IsHalfOf(string key, string part, bool nameSide)
+        {
+            int colon = key.IndexOf(':');
+            return nameSide
+                ? colon == part.Length && key.StartsWith(part, StringComparison.Ordinal)
+                : key.Length - colon - 1 == part.Length && key.EndsWith(part, StringComparison.Ordinal);
+        }
+
+        /// <summary>Most buckets <see cref="RussianOnlyNameKeys"/> may give to a search.</summary>
+        public const int MaxRussianOnlyNameKeys = 100;
+
+        /// <summary>
+        /// Bucket keys that may hold a release whose name the tracker parser cut to its Russian part:
+        /// "Побег из тюрьмы (Сезон 1, серии 1-22(22)) / Prison Break …" sits under <c>побегизтюрьмы:побегизтюрьмы</c>,
+        /// and neither name of the title, "Побег" / "Prison Break", is a part of that key. The name part of the key is
+        /// <paramref name="ruSn"/> plus letters, and the other part has no Latin letters: the parser found no original name.
+        /// Only for a title with both names, <paramref name="ruSn"/> Russian and <paramref name="enSn"/> Latin
+        /// (<c>StringConvert.SearchName</c> form): <see cref="ReleaseTitleForms.TitleNamesOriginal"/> has to confirm the
+        /// records by <paramref name="enSn"/>. Gives nothing for a Russian name shorter than <see cref="MinFranchiseTitle"/>
+        /// or when more than <see cref="MaxRussianOnlyNameKeys"/> buckets qualify.
+        /// </summary>
+        public HashSet<string> RussianOnlyNameKeys(string ruSn, string enSn)
+        {
+            var fastdb = Get();
+            var parts = _partsByStart;
+            var keys = new HashSet<string>();
+            if (parts == null || ruSn == null || ruSn.Length < MinFranchiseTitle || !HasCyrillic(ruSn) || enSn == null || !HasLatin(enSn))
+                return keys;
+
+            foreach (string part in PartsStartingWith(parts, ruSn))
+            {
+                if (part.Length == ruSn.Length || !char.IsLetter(part[ruSn.Length]) || !fastdb.TryGetValue(part, out List<string> list))
+                    continue;
+
+                foreach (string key in list)
+                {
+                    if (IsHalfOf(key, part, nameSide: true) && !HasLatin(key, part.Length + 1) && keys.Add(key) && keys.Count > MaxRussianOnlyNameKeys)
+                        return new HashSet<string>();
+                }
+            }
+            return keys;
+        }
+
+        static bool HasLatin(string s, int from = 0)
+        {
+            for (int i = from; i < s.Length; i++)
+            {
+                if (s[i] >= 'a' && s[i] <= 'z')
+                    return true;
+            }
+            return false;
+        }
+
+        static bool HasCyrillic(string s)
+        {
+            foreach (char c in s)
+            {
+                if (c >= 'а' && c <= 'я')
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>

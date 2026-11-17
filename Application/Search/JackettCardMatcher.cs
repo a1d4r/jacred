@@ -79,6 +79,7 @@ namespace JacRed.Application.Search
                 string _o = StringConvert.SearchName(title_original);
 
                 HashSet<string> keys = new HashSet<string>(20);
+                HashSet<string> russianOnly = new HashSet<string>();
                 bool titleForms = is_serial > 0;
 
                 void updateKeys(string k)
@@ -111,6 +112,13 @@ namespace JacRed.Application.Search
                     // "Чебурашка (1-12 из 52)" (2025) пришёл бы на фильм 2023.
                     if (titleForms)
                         keys.UnionWith(fastDbIndex.TitleFormKeys(_n, _o, 0, year));
+                    // Разбор трекера обрезал название до русского: "Побег из тюрьмы (Сезон 1, …) / Prison Break …" на карточку
+                    // "Побег" / "Prison Break". Не для текста AIOStreams "побег S01": NumQueryParser кладёт сезон в title_original.
+                    if (IndexerRequestParams.SeasonFromText(title_original) == null)
+                    {
+                        russianOnly = fastDbIndex.RussianOnlyNameKeys(_n, _o);
+                        keys.UnionWith(russianOnly);
+                    }
 
                     if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
                         keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
@@ -124,10 +132,11 @@ namespace JacRed.Application.Search
 
                 bool exactName(string name, string originalname) => (_n != null && _n == name) || (_o != null && _o == originalname);
 
-                bool matches(TorrentDetails t, string name, string originalname) => franchise
+                bool matches(TorrentDetails t, string key, string name, string originalname) => franchise
                     ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o, otherNamePrefixed: true)
                     // Точная выборка по name или originalname
-                    : exactName(name, originalname) || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0));
+                    : exactName(name, originalname) || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0))
+                        || (russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, _o));
 
                 // Записи только по сериям в скобках не считаются найденным именем: поиск без года ищет
                 // остальные сезоны и написания, и одна такая запись не должна его отменять.
@@ -146,9 +155,9 @@ namespace JacRed.Application.Search
                         string name = t._sn ?? StringConvert.SearchName(t.name);
                         string originalname = t._so ?? StringConvert.SearchName(t.originalname);
 
-                        if (matches(t, name, originalname))
+                        if (matches(t, key, name, originalname))
                         {
-                            // Только по сериям в скобках за названием: "Холод (1-10 из 10)"
+                            // Только по сериям в скобках за названием, "Холод (1-10 из 10)", или по английскому в заголовке
                             byEpisodes = !franchise && !exactName(name, originalname);
 
                             if (is_serial == 1)

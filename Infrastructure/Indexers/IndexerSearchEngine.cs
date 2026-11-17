@@ -234,6 +234,9 @@ namespace JacRed.Infrastructure.Indexers
                 int formSeason = season ?? 0;
                 // A spin-off seen from the title's other name searched apart drops its buckets here too.
                 keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear, StringConvert.SearchName(otherName)));
+                // Alloha's Russian name is altname: "Побег" / "Prison Break" for "Побег из тюрьмы / Prison Break (Сезон 1, …)".
+                var russianOnly = FastDbIndex.Default.RussianOnlyNameKeys(altSn, sn);
+                keys.UnionWith(russianOnly);
 
                 foreach (string key in keys)
                 {
@@ -245,7 +248,8 @@ namespace JacRed.Infrastructure.Indexers
                         if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
                             || (franchise && t.relased == franchiseYear && IsFilm(t.types)
                                 && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn))
-                            || ((!franchise || IsFilm(t.types)) && ReleaseTitleForms.Matches(t, sn, altSn, formSeason)))
+                            || ((!franchise || IsFilm(t.types)) && ReleaseTitleForms.Matches(t, sn, altSn, formSeason))
+                            || (russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, sn)))
                             add(t);
                     }
                 }

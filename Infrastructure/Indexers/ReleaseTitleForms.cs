@@ -43,6 +43,13 @@ namespace JacRed.Infrastructure.Indexers
         // Ore dake Level Up na Ken: Arise from the Shadow
         static readonly Regex Subtitle = new(@"^(?<base>[^:]+?)\s*:\s*\S", Opts);
 
+        // A " / " piece of a title ends where the release details start: "Prison Break (Пол Шойринг) [2005, …]".
+        static readonly Regex PieceDetails = new(@"\s*[(\[|].*$", Opts);
+
+        // SearchName rest of a piece behind the original name that only names a season:
+        // "Prison Break Season 1", "Prison Break - сезон 1 -", "Prison Break S01".
+        static readonly Regex PieceSeasonRest = new(@"^(?:(?:s|season|сезон|tv|тв|tb)0?[0-9]{1,2}|[0-9]{1,2}(?:st|nd|rd|th|й|ый|ой|ий)?(?:season|сезон))", Opts);
+
         /// <summary>
         /// Whether a fastdb part that starts with the title (SearchName) may be one of these forms,
         /// judged by the <paramref name="rest"/> after the title: episodes for any search, and for a
@@ -78,6 +85,29 @@ namespace JacRed.Infrastructure.Indexers
         /// </summary>
         public static bool Matches(TorrentDetails t, string sn, string altSn, int season) =>
             NameMatches(t, t.name, sn, altSn, season) || NameMatches(t, t.originalname, sn, altSn, season);
+
+        /// <summary>
+        /// True when a " / " piece of <paramref name="title"/> after the first one, up to the release details in brackets,
+        /// is <paramref name="originalSn"/> (SearchName), maybe followed by a season: rutracker "Побег из тюрьмы (Сезон 1,
+        /// серии 1-22(22)) / Prison Break (Пол Шойринг) [2005, …]" or "… / Prison Break Season 1 (Episode 1-22) …".
+        /// The first piece is the Russian name, and one that only starts with the title's is another title without it:
+        /// "Одиссея капитана Блада" is not "Одиссея" / "The Odyssey".
+        /// </summary>
+        public static bool TitleNamesOriginal(string title, string originalSn)
+        {
+            if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(originalSn))
+                return false;
+
+            var pieces = title.Split(" / ");
+            for (int i = 1; i < pieces.Length; i++)
+            {
+                string piece = StringConvert.SearchName(PieceDetails.Replace(pieces[i], ""));
+                if (piece != null && piece.StartsWith(originalSn, StringComparison.Ordinal)
+                        && (piece.Length == originalSn.Length || PieceSeasonRest.IsMatch(piece.Substring(originalSn.Length))))
+                    return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// The N of "из N" in the episodes in brackets behind <paramref name="sn"/> or <paramref name="altSn"/>
