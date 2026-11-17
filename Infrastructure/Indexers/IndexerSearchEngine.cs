@@ -12,6 +12,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace JacRed.Infrastructure.Indexers
@@ -235,7 +236,9 @@ namespace JacRed.Infrastructure.Indexers
                 // A spin-off seen from the title's other name searched apart drops its buckets here too.
                 keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear, StringConvert.SearchName(otherName)));
                 // Alloha's Russian name is altname: "Побег" / "Prison Break" for "Побег из тюрьмы / Prison Break (Сезон 1, …)".
-                var russianOnly = FastDbIndex.Default.RussianOnlyNameKeys(altSn, sn);
+                // Alloha may keep entities ("Law &amp; Order"), a tracker title has the text.
+                string originalSn = StringConvert.SearchName(WebUtility.HtmlDecode(search));
+                var russianOnly = FastDbIndex.Default.RussianOnlyNameKeys(altSn, originalSn);
                 // A bucket only these keys give takes a record by the English name alone: the other checks would let in what
                 // the keys above leave out on purpose, a spin-off ("Ходячие мертвецы: Дэрил Диксон (Сезон 2)") or a subtitle
                 // of a name with too many.
@@ -249,7 +252,7 @@ namespace JacRed.Infrastructure.Indexers
                     foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
-                        bool byOriginal = russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, sn);
+                        bool byOriginal = russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, originalSn);
                         if (alone)
                         {
                             if (byOriginal)

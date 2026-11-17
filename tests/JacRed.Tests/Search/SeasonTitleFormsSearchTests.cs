@@ -769,6 +769,17 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task SeriesIdSearch_EntityInAllohaName_CutToRussian_IsFound()
+    {
+        // Alloha keeps the entity, rutracker the text.
+        string ru = $"Закон {_tag}", name = $"{ru} и порядок";
+        Seed("law", name, name, 1990, new[] { "serial" }, $"{name} (Сезон 1) / Law & {_tag} Order [1990, США, DVDRip]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "law" }, await IdSearch("tt9990135", $"Law &amp; {_tag} Order", ru, 1990, "serial", series: true, 1));
+    }
+
+    [Fact]
     public async Task NameCutToRussian_TooManyBuckets_GetsNone()
     {
         string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";
