@@ -725,6 +725,21 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task SeriesIdSearch_SpinOffCutToRussian_NotALaterSeason()
+    {
+        // The spin-off's buckets are dropped as a subtitle of the title; as a name cut to Russian they take a record only
+        // by the title's English name, and "The Walking Dead: Daryl Dixon" is not it.
+        string[] serial = { "serial" };
+        string ru = $"Ходячие {_tag} мертвецы", en = $"The Walking {_tag} Dead", spinOff = $"{ru}: Дэрил Диксон";
+        Seed("twdd-ru-s1", spinOff, spinOff, 2023, serial, $"{spinOff} (Сезон 1, серии 1-6 (6)) / {en}: Daryl Dixon (Дэвид Забель) [2023, США, ужасы, WEB-DL 1080p]");
+        Seed("twdd-ru-s2", spinOff, spinOff, 2024, serial,
+            $"{spinOff} (Сезон 2, серии 1-6 (6)) / {en}: Daryl Dixon - The Book of Carol (Дэвид Забель) [2024, США, ужасы, WEB-DL 1080p]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "twd-s2" }, await IdSearch("tt9990132", en, ru, 2010, "serial", series: true, 2));
+    }
+
+    [Fact]
     public async Task NameCutToRussian_TooManyBuckets_GetsNone()
     {
         string ru = $"Побег {_tag}", en = $"Prison {_tag} Break";

@@ -236,20 +236,33 @@ namespace JacRed.Infrastructure.Indexers
                 keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear, StringConvert.SearchName(otherName)));
                 // Alloha's Russian name is altname: "Побег" / "Prison Break" for "Побег из тюрьмы / Prison Break (Сезон 1, …)".
                 var russianOnly = FastDbIndex.Default.RussianOnlyNameKeys(altSn, sn);
-                keys.UnionWith(russianOnly);
+                // A bucket only these keys give takes a record by the English name alone: the other checks would let in what
+                // the keys above leave out on purpose, a spin-off ("Ходячие мертвецы: Дэрил Диксон (Сезон 2)") or a subtitle
+                // of a name with too many.
+                var russianOnlyAlone = new HashSet<string>(russianOnly);
+                russianOnlyAlone.ExceptWith(keys);
+                keys.UnionWith(russianOnlyAlone);
 
                 foreach (string key in keys)
                 {
+                    bool alone = russianOnlyAlone.Contains(key);
                     foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
+                        bool byOriginal = russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, sn);
+                        if (alone)
+                        {
+                            if (byOriginal)
+                                add(t);
+                            continue;
+                        }
                         string n = t._sn ?? StringConvert.SearchName(t.name);
                         string o = t._so ?? StringConvert.SearchName(t.originalname);
                         if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
                             || (franchise && t.relased == franchiseYear && IsFilm(t.types)
                                 && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn))
                             || ((!franchise || IsFilm(t.types)) && ReleaseTitleForms.Matches(t, sn, altSn, formSeason))
-                            || (russianOnly.Contains(key) && ReleaseTitleForms.TitleNamesOriginal(t.title, sn)))
+                            || byOriginal)
                             add(t);
                     }
                 }
