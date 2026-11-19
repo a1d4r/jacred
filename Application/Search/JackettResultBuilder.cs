@@ -284,6 +284,7 @@ namespace JacRed.Application.Search
                     Title = i.title,
                     Size = i.size,
                     PublishDate = i.createTime,
+                    UpdateTime = i.updateTime,
                     Category = GetCategoryIds(i, out string categoryDesc),
                     CategoryDesc = categoryDesc,
                     Seeders = i.sid,
